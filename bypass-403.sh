@@ -1,13 +1,13 @@
 #!/bin/bash
 
-Bypass-403-Forbidden-Error
+# Bypass-403-Forbidden-Error
 echo "                                               By Nea5her"
-echo "./bypass-403.sh <subdomain-file or single domain> [-w wordlist.txt | <single path>]"
+echo "./bypass-403.sh <subdomain-file or single domain> [-w wordlist.txt | <single path>] [-o output.txt]"
 echo " "
 
 # Check if at least one argument is provided
 if [ "$#" -lt 1 ]; then
-    echo "Usage: $0 <subdomain-file or single domain> [-w wordlist.txt | <single path>]"
+    echo "Usage: $0 <subdomain-file or single domain> [-w wordlist.txt | <single path>] [-o output.txt]"
     exit 1
 fi
 
@@ -27,10 +27,18 @@ fi
 # Check if the second argument is a wordlist or a single path
 wordlist=""
 single_path=""
+output_file="200-outputs.txt"
 if [[ "$2" == "-w" ]]; then
     wordlist=$3
 elif [[ -n $2 ]]; then
     single_path="/$2"  # Treat the second argument as a single path, prepend '/'
+fi
+
+# Handle optional output file argument
+if [[ "$4" == "-o" ]]; then
+    output_file=$5
+elif [[ "$3" == "-o" ]]; then
+    output_file=$4
 fi
 
 # Function to check bypass methods
@@ -58,7 +66,11 @@ check_bypass() {
 
     for header in "${headers[@]}"; do
         response=$(curl -k -s -o /dev/null -iL -w "%{http_code},%{size_download}" -H "$header" "$domain$path")
-        echo "  --> ${domain}${path} -H $header : $response"
+        if [[ "$response" =~ ^200 ]]; then
+            echo -e "\033[0;32m  --> ${domain}${path} -H $header : $response\033[0m" | tee -a "$output_file"
+        else
+            echo "  --> ${domain}${path} -H $header : $response"
+        fi
     done
 
     # Payload-based bypass methods
@@ -70,7 +82,11 @@ check_bypass() {
 
     for payload in "${payloads[@]}"; do
         response=$(curl -k -s -o /dev/null -iL -w "%{http_code},%{size_download}" "$domain$path$payload")
-        echo "  --> ${domain}${path}${payload} : $response"
+        if [[ "$response" =~ ^200 ]]; then
+            echo -e "\033[0;32m  --> ${domain}${path}${payload} : $response\033[0m" | tee -a "$output_file"
+        else
+            echo "  --> ${domain}${path}${payload} : $response"
+        fi
     done
 }
 

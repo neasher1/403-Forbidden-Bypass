@@ -61,6 +61,14 @@ This checks for 403 bypassing on each path in wordlist.txt for each domain in su
 
 ```
 
+- Specify an Output File for 200 Status Results:
+```
+./bypass-403.sh live-subs.txt -w wordlist.txt -o output.txt
+
+If user didn't save output, it will automatically saved 200 status output in 200-status-outputs.txt file. Appends any URLs with a 200 status code to output.txt, preserving previous results across multiple runs.
+
+```
+
 
 ## Wordlist Format
 ```
@@ -78,6 +86,8 @@ dashboard
 - Path Encoding & Manipulation: It attempts different encoded paths and appends characters like ?, %20, /..;/ to the URLs to test access.
 
 - Wordlist Testing (Optional): If a wordlist is provided, the script will apply all bypass techniques to each path in the wordlist, testing one path at a time.
+
+- 200 Status Logging: Any request that returns a 200 status code is printed in green and saved to 200-outputs.txt (or your specified output file) to retain results for easy review. 
 
 - Output: The tool outputs HTTP response codes and sizes for each request, which can be reviewed to see if access was granted to previously forbidden paths.
 
